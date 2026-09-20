@@ -14,6 +14,19 @@ python -m reclameaqui stats nubank
 python -m reclameaqui collect magazine-luiza --limit 200 --out saida.jsonl
 ```
 
+**Coleta completa**, em dois passos — o primeiro descobre o catálogo de tipos de
+problema, o segundo o usa para furar o teto de ~500 por listagem:
+
+```bash
+python -m reclameaqui types nubank --scan --out tipos.json
+python -m reclameaqui collect nubank --all --types tipos.json \
+    --full-text --out nubank.jsonl -v
+```
+
+O `--scan` leva cerca de 25 minutos e só precisa ser feito uma vez por empresa.
+Numa empresa com 18.520 reclamações, esse fluxo recuperou mais de 10.000; sem o
+catálogo, a listagem geral entrega 500.
+
 ```python
 from reclameaqui import Client
 
@@ -83,6 +96,9 @@ for r in c.collect_all(problem_types=types):
     ...
 ```
 
+Pela linha de comando, `types --scan --out tipos.json` seguido de
+`collect --all --types tipos.json`.
+
 ### O catálogo de tipos de problema
 
 `company.presences[].problemTypes` traz nome e ID, mas só de um subconjunto — no
@@ -93,8 +109,10 @@ A saída é força bruta: os IDs são inteiros pequenos preenchidos com zeros
 Uma requisição por ID, cerca de 25 minutos.
 
 ```bash
-python -m reclameaqui types quinto-andar --scan
+python -m reclameaqui types quinto-andar --scan --out tipos.json
 ```
+
+No caso testado, o cadastro trazia 12 tipos e o scan encontrou 81.
 
 ### Texto completo
 

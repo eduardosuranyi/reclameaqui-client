@@ -52,12 +52,18 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--scan", action="store_true",
                    help="descobre o catálogo completo testando IDs (lento)")
     p.add_argument("--scan-end", type=int, default=1500)
+    p.add_argument("--out", type=Path,
+                   help="salva o catálogo em JSON, para usar com "
+                        "`collect --types`")
 
     p = sub.add_parser("collect", help="coleta reclamações")
     p.add_argument("slug")
     p.add_argument("--limit", type=int, help="para após N reclamações")
     p.add_argument("--all", action="store_true",
                    help="percorre cada tipo de problema (passa do teto de ~500)")
+    p.add_argument("--types", type=Path,
+                   help="JSON de tipos gerado por `types --scan --out`; "
+                        "sem ele, --all usa só os tipos do cadastro")
     p.add_argument("--full-text", action="store_true",
                    help="busca o texto integral de cada uma (1 requisição por item)")
     p.add_argument("--out", type=Path, default=Path("complaints.jsonl"))
@@ -85,10 +91,20 @@ def main(argv: list[str] | None = None) -> int:
             for t in types:
                 print(f"  {t['id']}  {t.get('name') or t.get('sample', '')}")
             print(f"\n{len(types)} tipos")
+            if args.out:
+                args.out.write_text(json.dumps(types, ensure_ascii=False, indent=1),
+                                    encoding="utf-8")
+                print(f"salvo em {args.out}")
             return 0
 
-        source = (client.collect_all() if args.all
-                  else client.complaints(limit=args.limit))
+        if args.all:
+            types = None
+            if args.types:
+                types = json.loads(args.types.read_text(encoding="utf-8"))
+                print(f"{len(types)} tipos de problema carregados de {args.types}")
+            source = client.collect_all(problem_types=types)
+        else:
+            source = client.complaints(limit=args.limit)
         if args.limit and args.all:
             def capped(it):
                 for i, x in enumerate(it):
